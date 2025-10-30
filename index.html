@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>世界経県値マップ</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+  <h1>🌏 世界経県値マップ</h1>
+
+  <p>各国をクリックして、訪問レベルを選んでください。</p>
+
+  <div id="map"></div>
+
+  <div id="score">
+    総スコア：<span id="totalScore">0</span>点
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log("Service Worker registered"))
+        .catch((err) => console.log("SW registration failed: ", err));
+    }
+  </script>
+</body>
+</html>

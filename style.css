@@ -1,0 +1,31 @@
+body {
+  font-family: "Segoe UI", "ヒラギノ角ゴ ProN", sans-serif;
+  background-color: #fdfdfd;
+  color: #333;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  color: #2a7de1;
+  margin-bottom: 10px;
+}
+
+#map {
+  width: 90%;
+  height: 500px;
+  margin: 0 auto;
+  border: 2px solid #ccc;
+  border-radius: 15px;
+  background-color: #f8f8f8;
+}
+
+#score {
+  margin-top: 20px;
+  font-size: 1.2em;
+  background: #eaf7ff;
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 12px;
+}
