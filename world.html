@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>世界経県値マップ</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Service Worker 登録 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log("Service Worker registered"))
+        .catch(err => console.log("SW registration failed:", err));
+    }
+  </script>
+</head>
+
+<body>
+  <h1>🌏 世界版マップ</h1>
+
+  <!-- 地図エリア -->
+  <div id="map">
+    <!-- SVGは別ファイル (world-map.svg) から読み込まれます -->
+  </div>
+
+  <!-- 合計スコア表示 -->
+  <div id="score">
+    総スコア：<span id="totalScore">0</span>点
+  </div>
+
+  <!-- ボタンエリア -->
+  <div class="button-area">
+    <a href="world-edit.html" class="btn">✏️ 編集</a>
+    <a href="index.html" class="btn">🏠 ホームに戻る</a>
+  </div>
+
+  <!-- jsライブラリ(svg-pan-zoom) -->
+  <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+
+  <!-- 世界地図処理（完全版） -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const mapDiv = document.getElementById('map');
+      const totalScoreEl = document.getElementById('totalScore');
+
+      // 国名（表示名） → SVG内の要素ID の対応表
+      const countryIdMap = {
+        "日本": "JP",
+        "アメリカ": "US",
+        "フランス": "FR",
+        "中国": "CN",
+        "ブラジル": "BR"
+      };
+
+      // 色とスコアの定義
+      const colors = {
+        "未踏": "#f0f0f0",
+        "経由": "#b3e5fc",
+        "訪問": "#81c784",
+        "宿泊": "#f48fb1"
+      };
+      const scores = { "未踏":0, "経由":1, "訪問":2, "宿泊":3 };
+
+      // SVGを読み込み、DOMに挿入して初期化する
+      fetch('world-map.svg')
+        .then(res => {
+          if (!res.ok) throw new Error('SVGの取得に失敗しました: ' + res.status);
+          return res.text();
+        })
+        .then(svgData => {
+          mapDiv.innerHTML = svgData;
+
+          // SVG 要素を取得
+          const svgElement = document.getElementById('worldSVG');
+          if (!svgElement) {
+            console.warn('worldSVG 要素が見つかりません。SVG内に id="worldSVG" があるか確認してください。');
+          }
+
+          // localStorage から状態を取得（編集ページで保存したもの）
+          const countryStatus = JSON.parse(localStorage.getItem('countryStatus')) || {};
+
+          // 総スコアを計算しつつ、SVG上の色を更新
+          let total = 0;
+          for (const [country, level] of Object.entries(countryStatus)) {
+            const id = countryIdMap[country];
+            if (!id) continue; // 対応表にない国はスキップ
+            const el = document.getElementById(id);
+            if (el) {
+              const fill = colors[level] || colors["未踏"];
+              // SVG要素に色を反映（fill属性を使う）
+              el.setAttribute('fill', fill);
+            }
+            total += scores[level] || 0;
+          }
+          totalScoreEl.textContent = total;
+
+          // SVG上の色を、もし status に無い国があれば未踏で初期化（任意）
+          // （必要ならここで全国にデフォルト色を入れる処理を追加可能）
+
+          // svg-pan-zoom の初期化（SVGがDOMに追加された後で実行）
+          try {
+            if (svgElement && typeof svgPanZoom === 'function') {
+              svgPanZoom(svgElement, {
+                zoomEnabled: true,
+                controlIconsEnabled: true,
+                fit: true,
+                center: true,
+                minZoom: 0.5,
+                maxZoom: 10,
+                zoomScaleSensitivity: 0.4
+              });
+            } else {
+              console.warn('svgPanZoom が利用できません。ライブラリの読み込みを確認してください。');
+            }
+          } catch (err) {
+            console.error('svgPanZoom 初期化エラー:', err);
+          }
+
+        })
+        .catch(err => {
+          console.error("SVGの読み込みに失敗しました:", err);
+          mapDiv.innerHTML = "<p>地図を読み込めませんでした（コンソール参照）。</p>";
+        });
+
+
+      // --- 追加機能（地図上の領域をクリックしたらその国の状態を切り替える等） ---
+      // もし地図上を直接タップで変更したい場合はここにイベントデリゲーションを追加できます。
+      // 例（タップで「未踏→経由→訪問→宿泊」の順に切り替える簡易処理）：
+      mapDiv.addEventListener('click', (ev) => {
+        // クリック対象がSVG要素（pathやrectなど）なら処理する
+        let target = ev.target;
+        if (!target) return;
+        // SVG内の要素は <path>, <rect> などが想定
+        const svgEl = target.closest && target.closest('#worldSVG');
+        if (!svgEl) return;
+
+        // クリックされた要素のidを取得
+        const clickedId = target.id;
+        if (!clickedId) return;
+
+        // id から国名を逆引き（countryIdMap の反転）
+        const country = Object.keys(countryIdMap).find(k => countryIdMap[k] === clickedId);
+        if (!country) return;
+
+        // 現在のステータス取得、次のステータスに切り替え
+        const currentStatus = JSON.parse(localStorage.getItem('countryStatus')) || {};
+        const levels = ["未踏","経由","訪問","宿泊"];
+        const cur = currentStatus[country] || "未踏";
+        const next = levels[(levels.indexOf(cur) + 1) % levels.length];
+        currentStatus[country] = next;
+        localStorage.setItem('countryStatus', JSON.stringify(currentStatus));
+
+        // 色とスコアを即時更新
+        const el = document.getElementById(clickedId);
+        if (el) el.setAttribute('fill', colors[next]);
+        // 総スコア再計算
+        let tot = 0;
+        for (const lv of Object.values(currentStatus)) tot += scores[lv] || 0;
+        totalScoreEl.textContent = tot;
+      });
+
+    }); // DOMContentLoaded end
+  </script>
+</body>
+</html>
